@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Voix → Markdown</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎙️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12141A;
+    --bg-soft:#181B23;
+    --card:#1C2029;
+    --card-2:#20242F;
+    --line:#2C3140;
+    --ink:#EDEEF2;
+    --ink-dim:#9BA1B0;
+    --ink-faint:#5C6274;
+    --amber:#F2A23C;
+    --amber-dim:#8A6428;
+    --red:#E8555A;
+    --green:#6FCF97;
+    --radius:14px;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(circle at 15% -10%, #232A3A 0%, var(--bg) 45%) fixed;
+    color:var(--ink);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:32px 18px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+
+  header{margin-bottom:28px;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--amber);
+    letter-spacing:.02em;
+    display:flex;align-items:center;gap:8px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);}
+  h1{
+    font-size:30px;
+    font-weight:600;
+    margin:10px 0 6px;
+    letter-spacing:-.01em;
+  }
+  header p{color:var(--ink-dim);margin:0;font-size:14.5px;line-height:1.5;max-width:46ch;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-size:13px;
+    font-family:var(--mono);
+    text-transform:none;
+    color:var(--ink-dim);
+    margin:0 0 14px;
+    font-weight:500;
+  }
+
+  /* API key */
+  .key-row{display:flex;gap:8px;}
+  .key-row input{
+    flex:1;
+    background:var(--bg-soft);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:11px 12px;
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  .key-row input:focus{outline:2px solid var(--amber-dim);outline-offset:1px;}
+  .icon-btn{
+    background:var(--bg-soft);
+    border:1px solid var(--line);
+    border-radius:10px;
+    color:var(--ink-dim);
+    width:42px;
+    cursor:pointer;
+    font-size:15px;
+  }
+  .icon-btn:hover{color:var(--ink);border-color:var(--ink-faint);}
+  .key-status{font-size:12px;color:var(--ink-faint);margin-top:8px;font-family:var(--mono);}
+  .key-status.saved{color:var(--green);}
+
+  /* tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:16px;}
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--bg-soft);
+    color:var(--ink-dim);
+    font-size:13.5px;
+    cursor:pointer;
+    font-family:var(--sans);
+    font-weight:500;
+  }
+  .tab.active{background:var(--card-2);color:var(--ink);border-color:var(--amber-dim);}
+
+  /* recorder */
+  .recorder{display:flex;flex-direction:column;align-items:center;padding:22px 10px 6px;}
+  .rec-btn{
+    width:84px;height:84px;border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--card-2);
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+    transition:border-color .15s;
+  }
+  .rec-btn:hover{border-color:var(--red);}
+  .rec-btn .core{width:28px;height:28px;border-radius:50%;background:var(--red);transition:.15s;}
+  .rec-btn.recording .core{border-radius:6px;width:24px;height:24px;}
+  .rec-btn.recording{border-color:var(--red);box-shadow:0 0 0 6px rgba(232,85,90,.12);}
+  .rec-timer{font-family:var(--mono);font-size:15px;color:var(--ink-dim);margin-top:16px;letter-spacing:.02em;}
+  .rec-timer.live{color:var(--ink);}
+  .meter{
+    width:100%;max-width:280px;height:5px;background:var(--bg-soft);
+    border-radius:3px;overflow:hidden;margin-top:14px;border:1px solid var(--line);
+  }
+  .meter-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--amber) 70%,var(--red));transition:width .06s linear;}
+  .rec-hint{font-size:12.5px;color:var(--ink-faint);margin-top:12px;text-align:center;}
+  .rec-controls{display:flex;gap:10px;margin-top:18px;}
+
+  /* upload dropzone */
+  .drop{
+    border:1.5px dashed var(--line);
+    border-radius:12px;
+    padding:34px 16px;
+    text-align:center;
+    color:var(--ink-dim);
+    cursor:pointer;
+    font-size:13.5px;
+  }
+  .drop.drag{border-color:var(--amber);background:rgba(242,162,60,.05);color:var(--ink);}
+  .drop strong{color:var(--ink);}
+
+  /* preview */
+  .preview{display:flex;align-items:center;gap:12px;margin-top:16px;}
+  .preview audio{flex:1;height:36px;}
+  .preview .filename{font-family:var(--mono);font-size:12px;color:var(--ink-dim);}
+
+  /* options */
+  .opts{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);}
+  .opt-label{font-size:13.5px;color:var(--ink-dim);}
+  .switch{position:relative;width:40px;height:22px;flex:none;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{position:absolute;inset:0;background:var(--bg-soft);border:1px solid var(--line);border-radius:22px;cursor:pointer;transition:.15s;}
+  .slider:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;background:var(--ink-dim);border-radius:50%;transition:.15s;}
+  .switch input:checked + .slider{background:var(--amber-dim);border-color:var(--amber);}
+  .switch input:checked + .slider:before{transform:translateX(18px);background:var(--amber);}
+
+  /* buttons */
+  .btn{
+    border:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:600;
+    cursor:pointer;font-family:var(--sans);
+  }
+  .btn-primary{background:var(--amber);color:#1A1200;width:100%;margin-top:18px;}
+  .btn-primary:disabled{background:var(--amber-dim);color:#4a3a1e;cursor:not-allowed;}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink-dim);}
+  .btn-ghost:hover{color:var(--ink);border-color:var(--ink-faint);}
+
+  /* status */
+  .status-card{display:none;}
+  .status-card.show{display:block;}
+  .steps{display:flex;gap:6px;margin-bottom:14px;}
+  .step{flex:1;height:3px;border-radius:2px;background:var(--line);}
+  .step.done{background:var(--green);}
+  .step.active{background:var(--amber);}
+  .status-line{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;color:var(--ink-dim);}
+  .spinner{width:13px;height:13px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--amber);animation:spin .8s linear infinite;flex:none;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .status-error{color:var(--red);font-size:13px;margin-top:10px;line-height:1.5;}
+
+  /* result */
+  .result-card{display:none;}
+  .result-card.show{display:block;}
+  .result-meta{font-family:var(--mono);font-size:12px;color:var(--ink-faint);margin-bottom:12px;}
+  .md-preview{
+    background:var(--bg-soft);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+    font-size:13.5px;
+    line-height:1.65;
+    color:var(--ink);
+    white-space:pre-wrap;
+    max-height:340px;
+    overflow-y:auto;
+    font-family:var(--mono);
+  }
+  .result-actions{display:flex;gap:10px;margin-top:14px;}
+  .result-actions .btn{flex:1;}
+
+  /* history */
+  .history-list{display:flex;flex-direction:column;gap:6px;}
+  .hist-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 12px;background:var(--bg-soft);border:1px solid var(--line);
+    border-radius:9px;cursor:pointer;font-size:13px;
+  }
+  .hist-item:hover{border-color:var(--ink-faint);}
+  .hist-item .t{color:var(--ink);}
+  .hist-item .d{font-family:var(--mono);color:var(--ink-faint);font-size:11.5px;}
+  .empty{color:var(--ink-faint);font-size:13px;}
+
+  footer{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:30px;font-family:var(--mono);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow"><span class="dot"></span>ENREGISTREUR → GLADIA → MARKDOWN</div>
+    <h1>Voix → Markdown</h1>
+    <p>Enregistre ou importe un audio, envoie-le à Gladia pour la retranscription, récupère un fichier .md prêt à l'emploi. Tout reste dans ce navigateur.</p>
+  </header>
+
+  <div class="card">
+    <h2>Clé API Gladia</h2>
+    <div class="key-row">
+      <input type="password" id="apiKey" placeholder="x-gladia-key…" autocomplete="off">
+      <button class="icon-btn" id="toggleKey" title="Afficher/masquer">👁</button>
+    </div>
+    <div class="key-status" id="keyStatus">Non enregistrée sur cet appareil</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" id="tabRecord">Enregistrer</div>
+      <div class="tab" id="tabUpload">Importer un fichier</div>
+    </div>
+
+    <div id="paneRecord">
+      <div class="recorder">
+        <button class="rec-btn" id="recBtn"><div class="core"></div></button>
+        <div class="rec-timer" id="recTimer">00:00</div>
+        <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+        <div class="rec-hint" id="recHint">Appuie pour démarrer l'enregistrement — le micro te sera demandé.</div>
+      </div>
+    </div>
+
+    <div id="paneUpload" style="display:none;">
+      <div class="drop" id="dropZone">
+        <div>📂 Glisse un fichier audio ici, ou <strong>clique pour choisir</strong></div>
+        <div style="margin-top:6px;font-size:12px;">mp3, wav, m4a, webm, ogg…</div>
+      </div>
+      <input type="file" id="fileInput" accept="audio/*" style="display:none;">
+    </div>
+
+    <div class="preview" id="previewRow" style="display:none;">
+      <audio id="previewAudio" controls></audio>
+      <div class="filename" id="previewName"></div>
+    </div>
+
+    <div class="opts">
+      <span class="opt-label">Distinguer les intervenants (diarisation)</span>
+      <label class="switch">
+        <input type="checkbox" id="diarizeToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button class="btn btn-primary" id="transcribeBtn" disabled>Envoyer à Gladia</button>
+  </div>
+
+  <div class="card status-card" id="statusCard">
+    <h2>Progression</h2>
+    <div class="steps">
+      <div class="step" id="step1"></div>
+      <div class="step" id="step2"></div>
+      <div class="step" id="step3"></div>
+      <div class="step" id="step4"></div>
+    </div>
+    <div class="status-line"><div class="spinner" id="statusSpinner"></div><span id="statusText">En préparation…</span></div>
+    <div class="status-error" id="statusError"></div>
+  </div>
+
+  <div class="card result-card" id="resultCard">
+    <h2>Transcription</h2>
+    <div class="result-meta" id="resultMeta"></div>
+    <div class="md-preview" id="mdPreview"></div>
+    <div class="result-actions">
+      <button class="btn btn-primary" id="downloadBtn" style="margin-top:0;">⬇ Télécharger le .md</button>
+      <button class="btn btn-ghost" id="copyBtn">Copier</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Historique (sur cet appareil)</h2>
+    <div class="history-list" id="historyList"><div class="empty">Aucune transcription pour l'instant.</div></div>
+  </div>
+
+  <footer>Fonctionne entièrement dans ce navigateur — l'audio et la clé ne transitent que vers api.gladia.io</footer>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    apiKey: $('apiKey'), toggleKey: $('toggleKey'), keyStatus: $('keyStatus'),
+    tabRecord: $('tabRecord'), tabUpload: $('tabUpload'),
+    paneRecord: $('paneRecord'), paneUpload: $('paneUpload'),
+    recBtn: $('recBtn'), recTimer: $('recTimer'), recHint: $('recHint'),
+    meterFill: $('meterFill'),
+    dropZone: $('dropZone'), fileInput: $('fileInput'),
+    previewRow: $('previewRow'), previewAudio: $('previewAudio'), previewName: $('previewName'),
+    diarizeToggle: $('diarizeToggle'),
+    transcribeBtn: $('transcribeBtn'),
+    statusCard: $('statusCard'), statusText: $('statusText'), statusError: $('statusError'), statusSpinner: $('statusSpinner'),
+    step1: $('step1'), step2: $('step2'), step3: $('step3'), step4: $('step4'),
+    resultCard: $('resultCard'), resultMeta: $('resultMeta'), mdPreview: $('mdPreview'),
+    downloadBtn: $('downloadBtn'), copyBtn: $('copyBtn'),
+    historyList: $('historyList')
+  };
+
+  const state = {
+    audioBlob: null, audioName: 'enregistrement.webm',
+    mediaRecorder: null, stream: null, chunks: [],
+    audioCtx: null, analyser: null, rafId: null,
+    timerId: null, seconds: 0,
+    currentMarkdown: '', currentTitle: ''
+  };
+
+  /* ---------- API key ---------- */
+  const savedKey = localStorage.getItem('gladia_api_key');
+  if (savedKey) { els.apiKey.value = savedKey; setKeyStatus(true); }
+  function setKeyStatus(saved){
+    els.keyStatus.textContent = saved ? 'Enregistrée sur cet appareil' : 'Non enregistrée sur cet appareil';
+    els.keyStatus.classList.toggle('saved', saved);
+  }
+  els.apiKey.addEventListener('input', () => {
+    const v = els.apiKey.value.trim();
+    if (v) { localStorage.setItem('gladia_api_key', v); setKeyStatus(true); }
+    else { localStorage.removeItem('gladia_api_key'); setKeyStatus(false); }
+    updateTranscribeEnabled();
+  });
+  els.toggleKey.addEventListener('click', () => {
+    els.apiKey.type = els.apiKey.type === 'password' ? 'text' : 'password';
+  });
+
+  /* ---------- Tabs ---------- */
+  els.tabRecord.addEventListener('click', () => switchTab('record'));
+  els.tabUpload.addEventListener('click', () => switchTab('upload'));
+  function switchTab(which){
+    const rec = which === 'record';
+    els.tabRecord.classList.toggle('active', rec);
+    els.tabUpload.classList.toggle('active', !rec);
+    els.paneRecord.style.display = rec ? '' : 'none';
+    els.paneUpload.style.display = rec ? 'none' : '';
+  }
+
+  /* ---------- Recording ---------- */
+  els.recBtn.addEventListener('click', () => {
+    if (state.mediaRecorder && state.mediaRecorder.state === 'recording') stopRecording();
+    else startRecording();
+  });
+
+  async function startRecording(){
+    try{
+      state.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }catch(err){
+      els.recHint.textContent = "Accès au micro refusé ou indisponible : " + err.message;
+      return;
+    }
+    const mimeCandidates = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+    const mimeType = mimeCandidates.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+    state.chunks = [];
+    state.mediaRecorder = mimeType ? new MediaRecorder(state.stream,{mimeType}) : new MediaRecorder(state.stream);
+    state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.chunks.push(e.data); };
+    state.mediaRecorder.onstop = onRecordingStopped;
+    state.mediaRecorder.start();
+
+    els.recBtn.classList.add('recording');
+    els.recHint.textContent = 'Enregistrement en cours — appuie pour arrêter.';
+    els.recTimer.classList.add('live');
+    state.seconds = 0;
+    updateTimer();
+    state.timerId = setInterval(() => { state.seconds++; updateTimer(); }, 1000);
+
+    startMeter(state.stream);
+    resetResultsUI();
+  }
+
+  function stopRecording(){
+    if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') state.mediaRecorder.stop();
+    state.stream.getTracks().forEach(t => t.stop());
+    clearInterval(state.timerId);
+    stopMeter();
+    els.recBtn.classList.remove('recording');
+    els.recHint.textContent = 'Enregistrement terminé. Relance pour recommencer, ou envoie-le ci-dessous.';
+  }
+
+  function onRecordingStopped(){
+    const type = state.mediaRecorder.mimeType || 'audio/webm';
+    state.audioBlob = new Blob(state.chunks, { type });
+    const ext = type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm';
+    state.audioName = 'enregistrement-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.' + ext;
+    showPreview();
+    updateTranscribeEnabled();
+  }
+
+  function updateTimer(){
+    const m = String(Math.floor(state.seconds/60)).padStart(2,'0');
+    const s = String(state.seconds%60).padStart(2,'0');
+    els.recTimer.textContent = m + ':' + s;
+  }
+
+  function startMeter(stream){
+    try{
+      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = state.audioCtx.createMediaStreamSource(stream);
+      state.analyser = state.audioCtx.createAnalyser();
+      state.analyser.fftSize = 512;
+      src.connect(state.analyser);
+      const data = new Uint8Array(state.analyser.frequencyBinCount);
+      const loop = () => {
+        state.analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i=0;i<data.length;i++){ const v=(data[i]-128)/128; sum += v*v; }
+        const rms = Math.sqrt(sum/data.length);
+        els.meterFill.style.width = Math.min(100, rms*260) + '%';
+        state.rafId = requestAnimationFrame(loop);
+      };
+      loop();
+    }catch(e){ /* meter is cosmetic; ignore failures */ }
+  }
+  function stopMeter(){
+    if (state.rafId) cancelAnimationFrame(state.rafId);
+    els.meterFill.style.width = '0%';
+    if (state.audioCtx) { state.audioCtx.close().catch(()=>{}); state.audioCtx = null; }
+  }
+
+  /* ---------- Upload ---------- */
+  els.dropZone.addEventListener('click', () => els.fileInput.click());
+  els.fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+  ['dragenter','dragover'].forEach(ev => els.dropZone.addEventListener(ev, e => { e.preventDefault(); els.dropZone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev => els.dropZone.addEventListener(ev, e => { e.preventDefault(); els.dropZone.classList.remove('drag'); }));
+  els.dropZone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+  function handleFile(file){
+    state.audioBlob = file;
+    state.audioName = file.name;
+    showPreview();
+    updateTranscribeEnabled();
+    resetResultsUI();
+  }
+
+  function showPreview(){
+    els.previewRow.style.display = 'flex';
+    els.previewAudio.src = URL.createObjectURL(state.audioBlob);
+    els.previewName.textContent = state.audioName;
+  }
+
+  function updateTranscribeEnabled(){
+    els.transcribeBtn.disabled = !(state.audioBlob && els.apiKey.value.trim());
+  }
+
+  /* ---------- Transcription pipeline ---------- */
+  els.transcribeBtn.addEventListener('click', runTranscription);
+
+  async function runTranscription(){
+    const apiKey = els.apiKey.value.trim();
+    if (!apiKey || !state.audioBlob) return;
+
+    els.transcribeBtn.disabled = true;
+    els.resultCard.classList.remove('show');
+    els.statusCard.classList.add('show');
+    els.statusError.textContent = '';
+    els.statusSpinner.style.display = '';
+    setSteps(1);
+    setStatus('Envoi du fichier audio à Gladia…');
+
+    try{
+      const audioUrl = await uploadAudio(apiKey, state.audioBlob, state.audioName);
+      setSteps(2);
+      setStatus('Fichier reçu — création du job de transcription…');
+
+      const job = await requestTranscription(apiKey, audioUrl, els.diarizeToggle.checked);
+      setSteps(3);
+      setStatus('En file d’attente / transcription en cours…');
+
+      const result = await pollResult(apiKey, job.result_url);
+      setSteps(4);
+      setStatus('Terminé.');
+      els.statusSpinner.style.display = 'none';
+
+      renderResult(result, els.diarizeToggle.checked);
+    }catch(err){
+      els.statusSpinner.style.display = 'none';
+      els.statusError.textContent = '⚠ ' + err.message + (err.hint ? '\n' + err.hint : '');
+    }finally{
+      updateTranscribeEnabled();
+    }
+  }
+
+  function setSteps(n){
+    [els.step1, els.step2, els.step3, els.step4].forEach((el, i) => {
+      el.classList.toggle('done', i < n-1);
+      el.classList.toggle('active', i === n-1);
+    });
+  }
+  function setStatus(t){ els.statusText.textContent = t; }
+
+  async function uploadAudio(apiKey, blob, filename){
+    const form = new FormData();
+    form.append('audio', blob, filename);
+    let res;
+    try{
+      res = await fetch('https://api.gladia.io/v2/upload', {
+        method: 'POST',
+        headers: { 'x-gladia-key': apiKey },
+        body: form
+      });
+    }catch(e){
+      throw networkError();
+    }
+    if (!res.ok) throw await apiError(res, "Échec de l'envoi du fichier");
+    const data = await res.json();
+    return data.audio_url;
+  }
+
+  async function requestTranscription(apiKey, audioUrl, diarize){
+    let res;
+    try{
+      res = await fetch('https://api.gladia.io/v2/pre-recorded', {
+        method: 'POST',
+        headers: { 'x-gladia-key': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio_url: audioUrl,
+          diarization: !!diarize,
+          language_config: { languages: [], code_switching: false }
+        })
+      });
+    }catch(e){
+      throw networkError();
+    }
+    if (!res.ok) throw await apiError(res, "Échec de la création du job de transcription");
+    return res.json();
+  }
+
+  async function pollResult(apiKey, resultUrl){
+    while (true){
+      let res;
+      try{
+        res = await fetch(resultUrl, { headers: { 'x-gladia-key': apiKey } });
+      }catch(e){
+        throw networkError();
+      }
+      if (!res.ok) throw await apiError(res, 'Échec de la récupération du résultat');
+      const data = await res.json();
+      if (data.status === 'done') return data;
+      if (data.status === 'error') {
+        const e = new Error('Gladia a renvoyé une erreur de transcription.');
+        throw e;
+      }
+      setStatus('Statut : ' + (data.status || 'en cours') + '…');
+      await sleep(2500);
+    }
+  }
+
+  function networkError(){
+    const e = new Error("Impossible de joindre l'API Gladia (requête réseau bloquée ou hors-ligne).");
+    e.hint = "Vérifie ta connexion. Si l'erreur persiste alors que la clé est correcte, le navigateur ou une extension bloque peut-être la requête vers api.gladia.io.";
+    return e;
+  }
+
+  async function apiError(res, prefix){
+    let detail = '';
+    try{ const j = await res.json(); detail = j.message || JSON.stringify(j); }catch(e){}
+    const e = new Error(prefix + ' (HTTP ' + res.status + ')' + (detail ? ' — ' + detail : ''));
+    if (res.status === 401 || res.status === 403) e.hint = 'Vérifie que la clé API Gladia est correcte et active.';
+    return e;
+  }
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  /* ---------- Result rendering ---------- */
+  function renderResult(result, diarized){
+    const tr = (result.result && result.result.transcription) || {};
+    const meta = (result.result && result.result.metadata) || {};
+    const now = new Date();
+    const title = 'Transcription du ' + now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+
+    let body;
+    if (diarized && Array.isArray(tr.utterances) && tr.utterances.length){
+      body = tr.utterances.map(u => {
+        const spk = (u.speaker !== undefined && u.speaker !== null) ? 'Intervenant ' + (u.speaker + 1) : 'Intervenant';
+        return '**' + spk + '** *(' + fmtTime(u.start) + ' – ' + fmtTime(u.end) + ')*\n' + (u.text || '').trim();
+      }).join('\n\n');
+    } else if (Array.isArray(tr.utterances) && tr.utterances.length){
+      const paras = [];
+      let cur = [];
+      let lastEnd = null;
+      tr.utterances.forEach(u => {
+        if (lastEnd !== null && (u.start - lastEnd) > 2.5 && cur.length){
+          paras.push(cur.join(' ')); cur = [];
+        }
+        cur.push((u.text || '').trim());
+        lastEnd = u.end;
+      });
+      if (cur.length) paras.push(cur.join(' '));
+      body = paras.join('\n\n');
+    } else {
+      body = tr.full_transcript || '*(Aucun texte retourné)*';
+    }
+
+    const duration = meta.audio_duration ? fmtTime(meta.audio_duration) : '—';
+    const langs = (tr.languages && tr.languages.join(', ')) || '—';
+
+    const md = '# ' + title + '\n\n' +
+      '*Durée : ' + duration + ' · Langue détectée : ' + langs + ' · Généré via Gladia*\n\n' +
+      '---\n\n' + body + '\n';
+
+    state.currentMarkdown = md;
+    state.currentTitle = title;
+
+    els.resultMeta.textContent = 'Durée ' + duration + ' · Langue ' + langs + (diarized ? ' · Diarisation activée' : '');
+    els.mdPreview.textContent = md;
+    els.resultCard.classList.add('show');
+
+    saveHistory(title, md);
+    renderHistory();
+  }
+
+  function fmtTime(sec){
+    if (sec === undefined || sec === null) return '00:00';
+    sec = Math.round(sec);
+    const m = String(Math.floor(sec/60)).padStart(2,'0');
+    const s = String(sec%60).padStart(2,'0');
+    return m + ':' + s;
+  }
+
+  function resetResultsUI(){
+    els.resultCard.classList.remove('show');
+    els.statusCard.classList.remove('show');
+  }
+
+  /* ---------- Download / copy ---------- */
+  els.downloadBtn.addEventListener('click', () => {
+    if (!state.currentMarkdown) return;
+    const blob = new Blob([state.currentMarkdown], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = slug(state.currentTitle) + '.md';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  els.copyBtn.addEventListener('click', async () => {
+    if (!state.currentMarkdown) return;
+    try{
+      await navigator.clipboard.writeText(state.currentMarkdown);
+      els.copyBtn.textContent = 'Copié ✓';
+      setTimeout(() => els.copyBtn.textContent = 'Copier', 1500);
+    }catch(e){ els.copyBtn.textContent = 'Échec de la copie'; }
+  });
+  function slug(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+
+  /* ---------- History ---------- */
+  function saveHistory(title, md){
+    const hist = JSON.parse(localStorage.getItem('transcript_history') || '[]');
+    hist.unshift({ title, md, date: new Date().toISOString() });
+    localStorage.setItem('transcript_history', JSON.stringify(hist.slice(0, 30)));
+  }
+  function renderHistory(){
+    const hist = JSON.parse(localStorage.getItem('transcript_history') || '[]');
+    if (!hist.length){ els.historyList.innerHTML = '<div class="empty">Aucune transcription pour l’instant.</div>'; return; }
+    els.historyList.innerHTML = '';
+    hist.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'hist-item';
+      const d = new Date(item.date);
+      row.innerHTML = '<span class="t">' + item.title + '</span><span class="d">' + d.toLocaleDateString('fr-FR') + '</span>';
+      row.addEventListener('click', () => {
+        state.currentMarkdown = item.md;
+        state.currentTitle = item.title;
+        els.resultMeta.textContent = 'Depuis l’historique';
+        els.mdPreview.textContent = item.md;
+        els.resultCard.classList.add('show');
+        els.resultCard.scrollIntoView({ behavior:'smooth', block:'start' });
+      });
+      els.historyList.appendChild(row);
+    });
+  }
+  renderHistory();
+
+})();
+</script>
+</body>
+</html>
